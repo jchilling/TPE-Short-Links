@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     # Default supports "local-first" dev (docker compose Postgres).
     DATABASE_URL: str = "postgresql+psycopg://tpe:tpe@localhost:5432/tpe_short_links"
     ALLOW_HTTP_URLS: bool = False
-    SHORTLINK_CODE_LENGTH: int = 8
+    SHORTLINK_CODE_LENGTH: int = 4
     RESERVED_CODES: str = ""
     PUBLIC_BASE_URL: str = "http://localhost:8000"
 

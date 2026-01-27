@@ -10,39 +10,55 @@ export function App() {
 
   return (
     <AppShell
-      header={{ height: 56 }}
-      padding="md"
+      header={{ height: 64 }}
+      padding="lg"
       styles={{
         main: {
-          background: 'var(--mantine-color-gray-0)',
+          background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%)',
+          minHeight: '100vh',
+        },
+        header: {
+          background: 'white',
+          borderBottom: '1px solid var(--mantine-color-gray-3)',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
         },
       }}
     >
       <AppShell.Header>
-        <Container h="100%">
-          <Group h="100%" justify="space-between">
-            <Title order={4}>TPE Short Links</Title>
-            <Group gap="xs">
+        <Container h="100%" size="lg">
+          <Group h="100%" justify="space-between" align="center">
+            <Title order={3} style={{ margin: 0, fontWeight: 700, color: 'var(--mantine-color-blue-7)' }}>
+              TPE Short Links
+            </Title>
+            <Group gap="xs" align="center">
               <NavLink
                 component={Link}
                 to="/create"
-                leftSection={<IconLink size={16} />}
+                leftSection={<IconLink size={18} />}
                 label="Create"
                 active={location.pathname === '/create'}
+                style={{
+                  borderRadius: 'var(--mantine-radius-md)',
+                  fontWeight: location.pathname === '/create' ? 600 : 400,
+                }}
               />
               <NavLink
                 component={Link}
                 to="/manage"
-                leftSection={<IconListSearch size={16} />}
+                leftSection={<IconListSearch size={18} />}
                 label="Manage"
                 active={location.pathname === '/manage'}
+                style={{
+                  borderRadius: 'var(--mantine-radius-md)',
+                  fontWeight: location.pathname === '/manage' ? 600 : 400,
+                }}
               />
             </Group>
           </Group>
         </Container>
       </AppShell.Header>
       <AppShell.Main>
-        <Container size="lg">
+        <Container size="lg" py="xl">
           <Routes>
             <Route path="/create" element={<CreatePage />} />
             <Route path="/manage" element={<ManagePage />} />

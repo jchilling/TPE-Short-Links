@@ -1,10 +1,17 @@
 from __future__ import annotations
 
 import os
+import sys
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
+
+# Add backend directory to Python path so 'app' module can be imported
+# __file__ is migrations/env.py, so we go up two levels to get backend/
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 
 from app.db.base import Base  # noqa: F401
 from app.settings import get_settings

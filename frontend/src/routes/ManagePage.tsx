@@ -107,105 +107,181 @@ export function ManagePage() {
   }
 
   return (
-    <Stack gap="md">
-      <Group justify="space-between">
-        <Title order={3}>Manage Links</Title>
-        <Button leftSection={<IconRefresh size={16} />} variant="light" loading={loading} onClick={load}>
+    <Stack gap="xl">
+      <Group justify="space-between" align="center">
+        <div>
+          <Title order={1} style={{ marginBottom: '8px', fontWeight: 700 }}>
+            Manage Links
+          </Title>
+          <Text c="dimmed" size="sm">
+            View, search, and manage your short links
+          </Text>
+        </div>
+        <Button
+          leftSection={<IconRefresh size={18} />}
+          variant="light"
+          loading={loading}
+          onClick={load}
+          size="md"
+          radius="md"
+        >
           Refresh
         </Button>
       </Group>
 
-      <Card withBorder>
-        <Group align="end" grow>
-          <TextInput
-            label="Search"
-            placeholder="code, URL, note"
-            value={query}
-            onChange={(e) => setQuery(e.currentTarget.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+      <Card
+        withBorder
+        padding="xl"
+        radius="md"
+        style={{
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+          background: 'white',
+        }}
+      >
+        <Stack gap="md">
+          <Group align="flex-end" grow>
+            <TextInput
+              label="Search"
+              placeholder="code, URL, note"
+              value={query}
+              onChange={(e) => setQuery(e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setPage(1);
+                  load();
+                }
+              }}
+              size="md"
+              radius="md"
+            />
+            <Select
+              label="Tag"
+              data={tagOptions}
+              value={tagId ?? ''}
+              onChange={(v) => {
+                setPage(1);
+                setTagId(v && v !== '' ? v : null);
+              }}
+              searchable
+              nothingFoundMessage="No matching tags"
+              maxDropdownHeight={320}
+              size="md"
+              radius="md"
+            />
+            <Select
+              label="Status"
+              data={[
+                { value: 'all', label: 'All' },
+                { value: 'active', label: 'Active' },
+                { value: 'expired', label: 'Expired' },
+                { value: 'disabled', label: 'Disabled' },
+                { value: 'blocked', label: 'Blocked' },
+              ]}
+              value={status}
+              onChange={(v) => {
+                setPage(1);
+                setStatus((v as StatusFilter) ?? 'all');
+              }}
+              size="md"
+              radius="md"
+            />
+            <Button
+              variant="filled"
+              disabled={loading}
+              onClick={() => {
                 setPage(1);
                 load();
-              }
-            }}
-          />
-          <Select
-            label="Tag"
-            data={tagOptions}
-            value={tagId ?? ''}
-            onChange={(v) => {
-              setPage(1);
-              setTagId(v && v !== '' ? v : null);
-            }}
-          />
-          <Select
-            label="Status"
-            data={[
-              { value: 'all', label: 'All' },
-              { value: 'active', label: 'Active' },
-              { value: 'expired', label: 'Expired' },
-              { value: 'disabled', label: 'Disabled' },
-              { value: 'blocked', label: 'Blocked' },
-            ]}
-            value={status}
-            onChange={(v) => {
-              setPage(1);
-              setStatus((v as StatusFilter) ?? 'all');
-            }}
-          />
-          <Button
-            variant="filled"
-            disabled={loading}
-            onClick={() => {
-              setPage(1);
-              load();
-            }}
-          >
-            Apply
-          </Button>
-        </Group>
+              }}
+              size="md"
+              radius="md"
+              style={{
+                background: 'linear-gradient(135deg, var(--mantine-color-blue-6) 0%, var(--mantine-color-blue-7) 100%)',
+                fontWeight: 600,
+              }}
+            >
+              Apply Filters
+            </Button>
+          </Group>
+        </Stack>
       </Card>
 
-      <Card withBorder>
-        <Table highlightOnHover withTableBorder>
+      <Card
+        withBorder
+        padding="xl"
+        radius="md"
+        style={{
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+          background: 'white',
+        }}
+      >
+        <Table highlightOnHover withTableBorder radius="md">
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>Code</Table.Th>
-              <Table.Th>Short URL</Table.Th>
-              <Table.Th>Original URL</Table.Th>
-              <Table.Th>Tag</Table.Th>
-              <Table.Th>Created</Table.Th>
-              <Table.Th>Expiry</Table.Th>
-              <Table.Th>Status</Table.Th>
-              <Table.Th></Table.Th>
+              <Table.Th style={{ width: '80px', fontWeight: 600 }}>Code</Table.Th>
+              <Table.Th style={{ width: '200px', fontWeight: 600 }}>Short URL</Table.Th>
+              <Table.Th style={{ fontWeight: 600 }}>Original URL</Table.Th>
+              <Table.Th style={{ width: '120px', fontWeight: 600 }}>Tag</Table.Th>
+              <Table.Th style={{ width: '140px', fontWeight: 600 }}>Created</Table.Th>
+              <Table.Th style={{ width: '140px', fontWeight: 600 }}>Expiry</Table.Th>
+              <Table.Th style={{ width: '100px', fontWeight: 600 }}>Status</Table.Th>
+              <Table.Th style={{ width: '50px' }}></Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {items.length === 0 ? (
               <Table.Tr>
                 <Table.Td colSpan={8}>
-                  <Text c="dimmed" size="sm">
-                    No results
+                  <Text c="dimmed" size="sm" ta="center" py="xl">
+                    No results found
                   </Text>
                 </Table.Td>
               </Table.Tr>
             ) : (
               items.map((l) => (
-                <Table.Tr key={l.id}>
+                <Table.Tr key={l.id} style={{ transition: 'background-color 0.2s' }}>
                   <Table.Td>
-                    <Text fw={600}>{l.code}</Text>
+                    <Text
+                      fw={700}
+                      size="sm"
+                      style={{
+                        fontFamily: 'monospace',
+                        background: 'var(--mantine-color-gray-1)',
+                        padding: '4px 8px',
+                        borderRadius: 'var(--mantine-radius-sm)',
+                        display: 'inline-block',
+                      }}
+                    >
+                      {l.code}
+                    </Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text component="a" href={l.short_url} target="_blank" rel="noreferrer">
+                    <Text
+                      component="a"
+                      href={l.short_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      size="sm"
+                      style={{ wordBreak: 'break-all', color: 'var(--mantine-color-blue-7)' }}
+                    >
                       {l.short_url}
                     </Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text lineClamp={2}>{l.original_url}</Text>
+                    <Text lineClamp={2} size="sm" style={{ wordBreak: 'break-all' }}>
+                      {l.original_url}
+                    </Text>
                   </Table.Td>
-                  <Table.Td>{l.tag_name}</Table.Td>
-                  <Table.Td>{dayjs(l.created_at).format('YYYY-MM-DD HH:mm')}</Table.Td>
-                  <Table.Td>{l.expires_at ? dayjs(l.expires_at).format('YYYY-MM-DD HH:mm') : 'Permanent'}</Table.Td>
+                  <Table.Td>
+                    <Badge variant="light" color="blue" size="sm">
+                      {l.tag_name}
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm">{dayjs(l.created_at).format('YYYY-MM-DD HH:mm')}</Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm">{l.expires_at ? dayjs(l.expires_at).format('YYYY-MM-DD HH:mm') : 'Permanent'}</Text>
+                  </Table.Td>
                   <Table.Td>{statusBadge(l)}</Table.Td>
                   <Table.Td>
                     <ActionIcon
@@ -214,8 +290,10 @@ export function ManagePage() {
                       disabled={l.status !== 'active' || l.is_expired}
                       onClick={() => confirmDisable(l.code)}
                       aria-label="Disable"
+                      size="md"
+                      radius="md"
                     >
-                      <IconBan size={16} />
+                      <IconBan size={18} />
                     </ActionIcon>
                   </Table.Td>
                 </Table.Tr>
@@ -224,11 +302,11 @@ export function ManagePage() {
           </Table.Tbody>
         </Table>
 
-        <Group justify="space-between" mt="md">
-          <Text size="sm" c="dimmed">
-            {total} total
+        <Group justify="space-between" mt="xl" align="center">
+          <Text size="sm" c="dimmed" fw={500}>
+            {total} {total === 1 ? 'link' : 'links'} total
           </Text>
-          <Pagination value={page} onChange={setPage} total={totalPages} />
+          <Pagination value={page} onChange={setPage} total={totalPages} size="md" radius="md" />
         </Group>
       </Card>
     </Stack>

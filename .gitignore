@@ -16,3 +16,6 @@ dist/
 
 # DB volumes
 pgdata/
+
+# Cursor
+.cursor/

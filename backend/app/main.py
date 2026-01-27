@@ -20,7 +20,7 @@ from app.schemas import (
     TagOut,
 )
 from app.settings import get_settings
-from app.utils import generate_code, now_utc, validate_expires_at, validate_original_url
+from app.utils import generate_code, load_seed_tags, now_utc, validate_expires_at, validate_original_url
 
 app = FastAPI(title="TPE Short Links")
 
@@ -53,6 +53,41 @@ def is_reserved(code: str, db: Session) -> bool:
     return exists is not None
 
 
+def sync_seed_tags(db: Session) -> None:
+    """Ensure DB tags match `backend/app/tags.txt` (by name).
+
+    - Inserts missing tags (active)
+    - Reactivates tags that exist but were inactive
+    - Deactivates tags not present in the file (does NOT delete rows)
+    """
+    desired = load_seed_tags()
+    if not desired:
+        return
+
+    desired_set = set(desired)
+    existing = db.execute(select(Tag)).scalars().all()
+    by_name = {t.name: t for t in existing}
+
+    changed = False
+
+    for name in desired:
+        t = by_name.get(name)
+        if t is None:
+            db.add(Tag(name=name, is_active=True))
+            changed = True
+        elif not t.is_active:
+            t.is_active = True
+            changed = True
+
+    for t in existing:
+        if t.is_active and t.name not in desired_set:
+            t.is_active = False
+            changed = True
+
+    if changed:
+        db.commit()
+
+
 def link_to_out(link: ShortLink, tag_name: str) -> LinkOut:
     settings = get_settings()
     expires_at = as_utc(link.expires_at)
@@ -74,6 +109,7 @@ def link_to_out(link: ShortLink, tag_name: str) -> LinkOut:
 
 @app.get("/api/tags", response_model=list[TagOut])
 def get_tags(db: Session = Depends(get_db)) -> list[TagOut]:
+    sync_seed_tags(db)
     rows = db.execute(select(Tag).where(Tag.is_active == True).order_by(Tag.name.asc())).scalars().all()  # noqa: E712
     return [TagOut(id=t.id, name=t.name, is_active=t.is_active) for t in rows]
 
@@ -81,6 +117,7 @@ def get_tags(db: Session = Depends(get_db)) -> list[TagOut]:
 @app.post("/api/links", response_model=LinkOut)
 def create_link(payload: LinkCreateIn, db: Session = Depends(get_db)) -> LinkOut:
     settings = get_settings()
+    sync_seed_tags(db)
 
     # Avoid logging full URL in error logs; validate explicitly with minimal messages.
     validate_original_url(str(payload.original_url), allow_http=settings.ALLOW_HTTP_URLS)

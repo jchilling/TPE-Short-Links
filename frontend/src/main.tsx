@@ -12,7 +12,18 @@ import { App } from './routes/App';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <MantineProvider defaultColorScheme="light">
+    <MantineProvider
+      defaultColorScheme="light"
+      theme={{
+        primaryColor: 'blue',
+        defaultRadius: 'md',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        headings: {
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          fontWeight: '600',
+        },
+      }}
+    >
       <Notifications position="top-right" />
       <ModalsProvider>
         <BrowserRouter>
