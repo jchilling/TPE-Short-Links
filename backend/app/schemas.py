@@ -1,0 +1,44 @@
+from __future__ import annotations
+
+import datetime as dt
+
+from pydantic import BaseModel, Field, HttpUrl
+
+
+class TagOut(BaseModel):
+    id: int
+    name: str
+    is_active: bool
+
+
+class LinkCreateIn(BaseModel):
+    original_url: HttpUrl
+    tag_id: int = Field(..., ge=1)
+    expires_at: dt.datetime | None = None
+    note: str | None = Field(default=None, max_length=2000)
+
+
+class LinkOut(BaseModel):
+    id: int
+    code: str
+    original_url: str
+    tag_id: int
+    tag_name: str
+    expires_at: dt.datetime | None
+    note: str | None
+    status: str
+    created_at: dt.datetime
+    is_expired: bool
+    short_url: str
+
+
+class LinkListOut(BaseModel):
+    items: list[LinkOut]
+    total: int
+    limit: int
+    offset: int
+
+
+class DisableOut(BaseModel):
+    code: str
+    status: str

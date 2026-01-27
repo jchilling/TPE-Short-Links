@@ -1,0 +1,44 @@
+---
+alwaysApply: true
+---
+# Project: TPE Short Links
+
+## Goal
+Build an internal URL shortener with:
+- Create short link: {domain}/{CODE}, CODE is [A-Za-z0-9]+ (case-sensitive).
+- Redirect endpoint: GET /{CODE} redirects to original_url when valid.
+- Links are never reusable: once a CODE is used, it can never be used again, even after expiry.
+- Users must select a tag and an expiry date (expiry can be permanent).
+- Certain “special combinations” are blocked (reserved codes).
+
+## Default technical choices (unless repo already dictates otherwise)
+- Backend: FastAPI + Postgres + SQLAlchemy + Alembic
+- Frontend: React + Vite + TypeScript + Mantine UI
+- Prefer simple, explicit code over abstractions.
+
+## Non-negotiable behavior rules
+- Treat CODE as case-sensitive everywhere (routing, DB collation, comparisons).
+- Never delete ShortLink rows. Use status flags (active/expired/disabled/blocked).
+- Expiry semantics:
+  - expires_at = NULL means permanent
+  - expires_at <= now means expired
+- Redirect behavior:
+  - active: 302 redirect to original_url
+  - expired: 410 Gone (or a dedicated expired page, but default 410)
+  - blocked/disabled/not found: 404 Not Found
+- Reserved codes:
+  - Must be rejected on creation (generator must never output them)
+  - Must not be routable for redirect even if present in DB.
+
+## UX requirements
+- Create page: URL input, Tag dropdown, Expiry (Permanent / Date), Note, Create button.
+- Result panel: show short URL + copy button.
+- Manage page: list/search/filter; allow disabling a link.
+- No authentication requirements for now.
+
+## Working style
+- When implementing, always:
+  1) Update DB/migrations first,
+  2) Implement backend endpoints,
+  3) Implement frontend UI consuming those endpoints,
+  4) Add tests for edge cases and concurrency.
