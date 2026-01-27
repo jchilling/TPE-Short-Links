@@ -48,3 +48,5 @@ export const api = {
   disableLink: (code: string) => apiFetch<{ code: string; status: string }>(`/api/links/${code}/disable`, { method: 'POST' }),
 };
 
+export { API_BASE_URL };
+

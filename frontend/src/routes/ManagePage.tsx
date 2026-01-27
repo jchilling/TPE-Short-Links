@@ -18,7 +18,7 @@ import { IconBan, IconRefresh } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
 
-import { api } from '../api/client';
+import { API_BASE_URL, api } from '../api/client';
 import type { Link, Tag } from '../api/types';
 
 type StatusFilter = 'active' | 'disabled' | 'blocked' | 'expired' | 'all';
@@ -83,6 +83,21 @@ export function ManagePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, status, tagId]);
 
+  function exportCsv() {
+    try {
+      const sp = new URLSearchParams();
+      const trimmedQuery = query.trim();
+      if (trimmedQuery) sp.set('query', trimmedQuery);
+      if (tagId) sp.set('tag_id', String(Number(tagId)));
+      if (status) sp.set('status', status);
+      const qs = sp.toString();
+      const url = `${API_BASE_URL}/api/links/export${qs ? `?${qs}` : ''}`;
+      window.open(url, '_blank');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Export failed';
+      notifications.show({ color: 'red', message: msg });
+    }
+  }
   async function confirmDisable(code: string) {
     modals.openConfirmModal({
       title: 'Disable link?',
@@ -117,16 +132,21 @@ export function ManagePage() {
             View, search, and manage your short links
           </Text>
         </div>
-        <Button
-          leftSection={<IconRefresh size={18} />}
-          variant="light"
-          loading={loading}
-          onClick={load}
-          size="md"
-          radius="md"
-        >
-          Refresh
-        </Button>
+        <Group gap="sm">
+          <Button
+            leftSection={<IconRefresh size={18} />}
+            variant="light"
+            loading={loading}
+            onClick={load}
+            size="md"
+            radius="md"
+          >
+            Refresh
+          </Button>
+          <Button variant="outline" size="md" radius="md" onClick={exportCsv}>
+            Export CSV
+          </Button>
+        </Group>
       </Group>
 
       <Card

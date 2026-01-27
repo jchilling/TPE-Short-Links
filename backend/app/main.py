@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import csv
 import datetime as dt
+import io
 from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, Response
@@ -218,6 +220,91 @@ def list_links(
     )
     items = [link_to_out(link, tag_name) for (link, tag_name) in rows]
     return LinkListOut(items=items, total=total, limit=limit, offset=offset)
+
+
+@app.get("/api/links/export")
+def export_links_csv(
+    query: str | None = Query(default=None),
+    tag_id: int | None = Query(default=None, ge=1),
+    status: Literal["active", "disabled", "blocked", "expired", "all"] | None = Query(default="all"),
+    db: Session = Depends(get_db),
+) -> Response:
+    """Export links as CSV (applies same filters as list_links, but no pagination)."""
+    settings = get_settings()
+    now = now_utc()
+
+    base = select(ShortLink, Tag.name).join(Tag, Tag.id == ShortLink.tag_id)
+    where = []
+
+    if query:
+        q = f"%{query.lower()}%"
+        where.append(
+            or_(
+                func.lower(ShortLink.code).like(q),
+                func.lower(ShortLink.original_url).like(q),
+                func.lower(func.coalesce(ShortLink.note, "")).like(q),
+            )
+        )
+    if tag_id:
+        where.append(ShortLink.tag_id == tag_id)
+
+    if status and status != "all":
+        if status == "expired":
+            where.append(and_(ShortLink.expires_at.is_not(None), ShortLink.expires_at <= now))
+        else:
+            where.append(ShortLink.status == status)
+            if status == "active":
+                where.append(or_(ShortLink.expires_at.is_(None), ShortLink.expires_at > now))
+
+    if where:
+        base = base.where(and_(*where))
+
+    rows = db.execute(base.order_by(ShortLink.created_at.desc())).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "id",
+            "code",
+            "short_url",
+            "original_url",
+            "tag_id",
+            "tag_name",
+            "status",
+            "is_expired",
+            "created_at",
+            "expires_at",
+            "note",
+        ]
+    )
+
+    for link, tag_name in rows:
+        expires_at = as_utc(link.expires_at)
+        is_expired = expires_at is not None and expires_at <= now
+        short_url = f"{settings.PUBLIC_BASE_URL.rstrip('/')}/{link.code}"
+        writer.writerow(
+            [
+                link.id,
+                link.code,
+                short_url,
+                link.original_url,
+                link.tag_id,
+                tag_name,
+                link.status,
+                "true" if is_expired else "false",
+                link.created_at.isoformat(),
+                expires_at.isoformat() if expires_at is not None else "",
+                (link.note or "").replace("\n", " ").replace("\r", " "),
+            ]
+        )
+
+    content = output.getvalue()
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="short_links.csv"'},
+    )
 
 
 @app.post("/api/links/{code}/disable", response_model=DisableOut)
