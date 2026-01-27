@@ -2,6 +2,7 @@ import { Button, Card, CopyButton, Group, Select, Stack, Text, TextInput, Textar
 import { DateTimePicker } from '@mantine/dates';
 import '@mantine/dates/styles.css';
 import { notifications } from '@mantine/notifications';
+import { modals } from '@mantine/modals';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -16,6 +17,7 @@ export function CreatePage() {
 
   const [originalUrl, setOriginalUrl] = useState('');
   const [tagId, setTagId] = useState<string | null>(null);
+   const [tagTouched, setTagTouched] = useState(false);
   const [expiryMode, setExpiryMode] = useState<ExpiryMode>('permanent');
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [note, setNote] = useState('');
@@ -55,6 +57,7 @@ export function CreatePage() {
   const canSubmit = !originalUrlError && !!tagId && !expiryError && !loading;
 
   async function onSubmit() {
+    setTagTouched(true);
     setLoading(true);
     setResult(null);
     try {
@@ -69,7 +72,34 @@ export function CreatePage() {
       notifications.show({ color: 'green', message: 'Short link created' });
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Create failed';
-      notifications.show({ color: 'red', message: msg });
+
+      if (msg.startsWith('A short link already exists for this URL:')) {
+        const existingUrl = msg.replace('A short link already exists for this URL:', '').trim();
+        modals.open({
+          title: 'Short link already exists',
+          children: (
+            <Stack gap="xs">
+              <Text size="sm">
+                There is already an active short link for this URL. You can reuse the existing link instead of creating a new
+                one.
+              </Text>
+              <Text
+                size="sm"
+                fw={600}
+                style={{ wordBreak: 'break-all', fontFamily: 'monospace' }}
+                component="a"
+                href={existingUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {existingUrl}
+              </Text>
+            </Stack>
+          ),
+        });
+      } else {
+        notifications.show({ color: 'red', message: msg });
+      }
     } finally {
       setLoading(false);
     }
@@ -112,11 +142,14 @@ export function CreatePage() {
               placeholder="Pick a tag"
               data={tagOptions}
               value={tagId}
-              onChange={setTagId}
+              onChange={(value) => {
+                setTagTouched(true);
+                setTagId(value);
+              }}
               searchable
               nothingFoundMessage="No matching tags"
               maxDropdownHeight={320}
-              error={!tagId ? 'Tag is required' : null}
+              error={tagTouched && !tagId ? 'Tag is required' : null}
               size="md"
               radius="md"
             />

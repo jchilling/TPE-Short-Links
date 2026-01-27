@@ -127,6 +127,27 @@ def create_link(payload: LinkCreateIn, db: Session = Depends(get_db)) -> LinkOut
     if tag is None or not tag.is_active:
         raise HTTPException(status_code=422, detail="tag_id is invalid")
 
+    # If an active (non-expired) short link already exists for this URL, warn instead of silently creating a new one.
+    now = now_utc()
+    existing_row = (
+        db.execute(
+            select(ShortLink, Tag.name)
+            .join(Tag, Tag.id == ShortLink.tag_id)
+            .where(
+                ShortLink.original_url == str(payload.original_url),
+                ShortLink.status == "active",
+                or_(ShortLink.expires_at.is_(None), ShortLink.expires_at > now),
+            )
+        ).first()
+    )
+    if existing_row is not None:
+        existing_link, existing_tag_name = existing_row
+        existing = link_to_out(existing_link, existing_tag_name)
+        raise HTTPException(
+            status_code=409,
+            detail=f"A short link already exists for this URL: {existing.short_url}",
+        )
+
     for _ in range(30):
         code = generate_code(settings.SHORTLINK_CODE_LENGTH)
         if is_reserved(code, db):
