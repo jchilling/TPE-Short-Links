@@ -1,4 +1,5 @@
-import { Button, Card, CopyButton, Group, Select, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
+import { Button, Card, Checkbox, CopyButton, Group, Select, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
+import { IconQrcode } from '@tabler/icons-react';
 import { DateTimePicker } from '@mantine/dates';
 import '@mantine/dates/styles.css';
 import { notifications } from '@mantine/notifications';
@@ -17,10 +18,12 @@ export function CreatePage() {
 
   const [originalUrl, setOriginalUrl] = useState('');
   const [tagId, setTagId] = useState<string | null>(null);
-   const [tagTouched, setTagTouched] = useState(false);
+  const [tagTouched, setTagTouched] = useState(false);
   const [expiryMode, setExpiryMode] = useState<ExpiryMode>('permanent');
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [note, setNote] = useState('');
+  const [manualCode, setManualCode] = useState('');
+  const [useManualCode, setUseManualCode] = useState(false);
 
   const [result, setResult] = useState<Link | null>(null);
 
@@ -66,6 +69,7 @@ export function CreatePage() {
         tag_id: Number(tagId),
         expires_at: expiryMode === 'permanent' ? null : dayjs(expiresAt!).toISOString(),
         note: note.trim() ? note.trim() : null,
+        code: useManualCode && manualCode.trim() ? manualCode.trim() : null,
       };
       const created = await api.createLink(payload);
       setResult(created);
@@ -121,8 +125,9 @@ export function CreatePage() {
         padding="xl"
         radius="md"
         style={{
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+          boxShadow: '0 2px 12px rgba(0, 0, 0, 0.1)',
           background: 'white',
+          border: '1px solid var(--mantine-color-gray-2)',
         }}
       >
         <Stack gap="lg">
@@ -135,6 +140,25 @@ export function CreatePage() {
             size="md"
             radius="md"
           />
+
+          <Checkbox
+            label="Use custom code (manual entry)"
+            checked={useManualCode}
+            onChange={(e) => setUseManualCode(e.currentTarget.checked)}
+          />
+
+          {useManualCode ? (
+            <TextInput
+              label="Custom Code"
+              placeholder="Enter custom code (1-32 characters)"
+              value={manualCode}
+              onChange={(e) => setManualCode(e.currentTarget.value.slice(0, 32))}
+              maxLength={32}
+              size="md"
+              radius="md"
+              description="Custom code (1-32 characters, can include Chinese characters, letters, and numbers). Cannot be a reserved code (e.g., 'api', 'docs'). Must be unique."
+            />
+          ) : null}
 
           <Group grow align="flex-start">
             <Select
@@ -217,7 +241,7 @@ export function CreatePage() {
           padding="xl"
           radius="md"
           style={{
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
             background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
             border: '2px solid var(--mantine-color-blue-4)',
           }}
@@ -279,6 +303,17 @@ export function CreatePage() {
                 radius="md"
               >
                 Open Link
+              </Button>
+              <Button
+                variant="outline"
+                leftSection={<IconQrcode size={18} />}
+                component="a"
+                href={api.getQrCodeUrl(result.code)}
+                download={`qrcode_${result.code}.png`}
+                size="md"
+                radius="md"
+              >
+                Download QR Code
               </Button>
             </Group>
           </Stack>

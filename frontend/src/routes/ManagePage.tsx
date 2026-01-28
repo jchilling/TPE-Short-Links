@@ -81,7 +81,7 @@ export function ManagePage() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, status, tagId]);
+  }, [page, status, tagId, query]);
 
   function exportCsv() {
     try {
@@ -154,8 +154,9 @@ export function ManagePage() {
         padding="xl"
         radius="md"
         style={{
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+          boxShadow: '0 2px 12px rgba(0, 0, 0, 0.1)',
           background: 'white',
+          border: '1px solid var(--mantine-color-gray-2)',
         }}
       >
         <Stack gap="md">
@@ -219,7 +220,7 @@ export function ManagePage() {
                 fontWeight: 600,
               }}
             >
-              Apply Filters
+              Search
             </Button>
           </Group>
         </Stack>
@@ -230,8 +231,9 @@ export function ManagePage() {
         padding="xl"
         radius="md"
         style={{
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+          boxShadow: '0 2px 12px rgba(0, 0, 0, 0.1)',
           background: 'white',
+          border: '1px solid var(--mantine-color-gray-2)',
         }}
       >
         <Table highlightOnHover withTableBorder radius="md">
@@ -248,11 +250,21 @@ export function ManagePage() {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {items.length === 0 ? (
+            {loading ? (
               <Table.Tr>
                 <Table.Td colSpan={8}>
                   <Text c="dimmed" size="sm" ta="center" py="xl">
-                    No results found
+                    Loading...
+                  </Text>
+                </Table.Td>
+              </Table.Tr>
+            ) : items.length === 0 ? (
+              <Table.Tr>
+                <Table.Td colSpan={8}>
+                  <Text c="dimmed" size="sm" ta="center" py="xl">
+                    {query || tagId || status !== 'all'
+                      ? 'No results found matching your filters'
+                      : 'No links found. Create your first short link on the Create page.'}
                   </Text>
                 </Table.Td>
               </Table.Tr>

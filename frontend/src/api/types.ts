@@ -30,5 +30,6 @@ export type CreateLinkIn = {
   tag_id: number;
   expires_at: string | null;
   note: string | null;
+  code?: string | null;
 };
 

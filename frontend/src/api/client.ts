@@ -46,6 +46,12 @@ export const api = {
     return apiFetch<LinkList>(`/api/links${qs ? `?${qs}` : ''}`);
   },
   disableLink: (code: string) => apiFetch<{ code: string; status: string }>(`/api/links/${code}/disable`, { method: 'POST' }),
+  getQrCodeUrl: (code: string) => `${API_BASE_URL}/api/links/${code}/qrcode`,
+  listBlockedWords: () => apiFetch<string[]>('/api/blocked-words'),
+  addBlockedWord: (word: string) => apiFetch<{ message: string; word: string }>(`/api/blocked-words?word=${encodeURIComponent(word)}`, { method: 'POST' }),
+  deleteBlockedWord: (word: string) => apiFetch<{ message: string; word: string }>(`/api/blocked-words/${encodeURIComponent(word)}`, { method: 'DELETE' }),
+  createTag: (name: string) => apiFetch<Tag>(`/api/tags?name=${encodeURIComponent(name)}`, { method: 'POST' }),
+  deleteTag: (tagId: number) => apiFetch<{ message: string; tag_id: number }>(`/api/tags/${tagId}`, { method: 'DELETE' }),
 };
 
 export { API_BASE_URL };

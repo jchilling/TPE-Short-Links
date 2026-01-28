@@ -1,16 +1,25 @@
-import { AppShell, Container, Group, NavLink, Title } from '@mantine/core';
-import { IconLink, IconListSearch } from '@tabler/icons-react';
+import { AppShell, Button, Container, Group, Title } from '@mantine/core';
+import { IconLink, IconListSearch, IconShield, IconTags } from '@tabler/icons-react';
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
+import { BlockedWordsPage } from './BlockedWordsPage';
 import { CreatePage } from './CreatePage';
 import { ManagePage } from './ManagePage';
+import { TagsPage } from './TagsPage';
 
 export function App() {
   const location = useLocation();
 
+  const navItems = [
+    { path: '/create', label: 'Create', icon: IconLink },
+    { path: '/manage', label: 'Manage', icon: IconListSearch },
+    { path: '/tags', label: 'Tags', icon: IconTags },
+    { path: '/blocked-words', label: 'Blocked Words', icon: IconShield },
+  ];
+
   return (
     <AppShell
-      header={{ height: 64 }}
+      header={{ height: 72 }}
       padding="lg"
       styles={{
         main: {
@@ -18,41 +27,65 @@ export function App() {
           minHeight: '100vh',
         },
         header: {
-          background: 'white',
-          borderBottom: '1px solid var(--mantine-color-gray-3)',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+          background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+          borderBottom: '2px solid var(--mantine-color-gray-2)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
         },
       }}
     >
       <AppShell.Header>
         <Container h="100%" size="lg">
-          <Group h="100%" justify="space-between" align="center">
-            <Title order={3} style={{ margin: 0, fontWeight: 700, color: 'var(--mantine-color-blue-7)' }}>
+          <Group h="100%" justify="space-between" align="center" gap="xl">
+            <Title
+              order={3}
+              style={{
+                margin: 0,
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, var(--mantine-color-blue-7) 0%, var(--mantine-color-blue-9) 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
               TPE Short Links
             </Title>
-            <Group gap="xs" align="center">
-              <NavLink
-                component={Link}
-                to="/create"
-                leftSection={<IconLink size={18} />}
-                label="Create"
-                active={location.pathname === '/create'}
-                style={{
-                  borderRadius: 'var(--mantine-radius-md)',
-                  fontWeight: location.pathname === '/create' ? 600 : 400,
-                }}
-              />
-              <NavLink
-                component={Link}
-                to="/manage"
-                leftSection={<IconListSearch size={18} />}
-                label="Manage"
-                active={location.pathname === '/manage'}
-                style={{
-                  borderRadius: 'var(--mantine-radius-md)',
-                  fontWeight: location.pathname === '/manage' ? 600 : 400,
-                }}
-              />
+            <Group gap="xs" align="center" wrap="nowrap">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                return (
+                  <Button
+                    key={item.path}
+                    component={Link}
+                    to={item.path}
+                    leftSection={<Icon size={18} />}
+                    variant={isActive ? 'filled' : 'subtle'}
+                    size="sm"
+                    radius="md"
+                    style={{
+                      fontWeight: isActive ? 600 : 500,
+                      background: isActive
+                        ? 'linear-gradient(135deg, var(--mantine-color-blue-6) 0%, var(--mantine-color-blue-7) 100%)'
+                        : 'transparent',
+                      color: isActive ? 'white' : 'var(--mantine-color-gray-7)',
+                      border: isActive ? 'none' : '1px solid transparent',
+                      transition: 'all 0.2s ease',
+                    }}
+                    styles={{
+                      root: {
+                        '&:hover': {
+                          background: isActive
+                            ? 'linear-gradient(135deg, var(--mantine-color-blue-7) 0%, var(--mantine-color-blue-8) 100%)'
+                            : 'var(--mantine-color-gray-1)',
+                          transform: 'translateY(-1px)',
+                        },
+                      },
+                    }}
+                  >
+                    {item.label}
+                  </Button>
+                );
+              })}
             </Group>
           </Group>
         </Container>
@@ -62,6 +95,8 @@ export function App() {
           <Routes>
             <Route path="/create" element={<CreatePage />} />
             <Route path="/manage" element={<ManagePage />} />
+            <Route path="/tags" element={<TagsPage />} />
+            <Route path="/blocked-words" element={<BlockedWordsPage />} />
             <Route path="*" element={<Navigate to="/create" replace />} />
           </Routes>
         </Container>

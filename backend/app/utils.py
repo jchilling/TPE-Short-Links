@@ -30,6 +30,11 @@ def _load_blocked_words() -> set[str]:
     return words
 
 
+def load_blocked_words() -> set[str]:
+    """Public wrapper for loading blocked words."""
+    return _load_blocked_words()
+
+
 @lru_cache(maxsize=1)
 def load_seed_tags() -> list[str]:
     """Load desired tag names from text file (cached).

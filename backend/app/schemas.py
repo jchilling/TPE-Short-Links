@@ -16,6 +16,7 @@ class LinkCreateIn(BaseModel):
     tag_id: int = Field(..., ge=1)
     expires_at: dt.datetime | None = None
     note: str | None = Field(default=None, max_length=2000)
+    code: str | None = Field(default=None, min_length=1, max_length=32)
 
 
 class LinkOut(BaseModel):
