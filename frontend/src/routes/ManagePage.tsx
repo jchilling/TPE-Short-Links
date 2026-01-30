@@ -246,13 +246,14 @@ export function ManagePage() {
               <Table.Th style={{ width: '140px', fontWeight: 600 }}>Created</Table.Th>
               <Table.Th style={{ width: '140px', fontWeight: 600 }}>Expiry</Table.Th>
               <Table.Th style={{ width: '100px', fontWeight: 600 }}>Status</Table.Th>
+              <Table.Th style={{ width: '100px', fontWeight: 600 }}>Clicks</Table.Th>
               <Table.Th style={{ width: '50px' }}></Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {loading ? (
               <Table.Tr>
-                <Table.Td colSpan={8}>
+                <Table.Td colSpan={9}>
                   <Text c="dimmed" size="sm" ta="center" py="xl">
                     Loading...
                   </Text>
@@ -260,7 +261,7 @@ export function ManagePage() {
               </Table.Tr>
             ) : items.length === 0 ? (
               <Table.Tr>
-                <Table.Td colSpan={8}>
+                <Table.Td colSpan={9}>
                   <Text c="dimmed" size="sm" ta="center" py="xl">
                     {query || tagId || status !== 'all'
                       ? 'No results found matching your filters'
@@ -315,6 +316,11 @@ export function ManagePage() {
                     <Text size="sm">{l.expires_at ? dayjs(l.expires_at).format('YYYY-MM-DD HH:mm') : 'Permanent'}</Text>
                   </Table.Td>
                   <Table.Td>{statusBadge(l)}</Table.Td>
+                  <Table.Td>
+                    <Text fw={600} size="sm" c="blue">
+                      {l.click_count.toLocaleString()}
+                    </Text>
+                  </Table.Td>
                   <Table.Td>
                     <ActionIcon
                       variant="subtle"

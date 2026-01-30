@@ -31,6 +31,7 @@ class LinkOut(BaseModel):
     created_at: dt.datetime
     is_expired: bool
     short_url: str
+    click_count: int
 
 
 class LinkListOut(BaseModel):

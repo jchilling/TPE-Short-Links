@@ -16,6 +16,7 @@ export type Link = {
   created_at: string;
   is_expired: boolean;
   short_url: string;
+  click_count: number;
 };
 
 export type LinkList = {

@@ -40,5 +40,6 @@ class ShortLink(Base):
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, server_default="active")
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    click_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
     tag: Mapped[Tag] = relationship(back_populates="links")

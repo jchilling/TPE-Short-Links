@@ -120,6 +120,7 @@ def link_to_out(link: ShortLink, tag_name: str) -> LinkOut:
         created_at=link.created_at,
         is_expired=is_expired,
         short_url=f"{settings.PUBLIC_BASE_URL.rstrip('/')}/{link.code}",
+        click_count=link.click_count,
     )
 
 
@@ -211,6 +212,7 @@ def create_link(payload: LinkCreateIn, db: Session = Depends(get_db)) -> LinkOut
         expires_at=payload.expires_at,
         note=payload.note,
         status="active",
+        click_count=0,
     )
     db.add(link)
     try:
@@ -324,6 +326,7 @@ def export_links_csv(
             "created_at",
             "expires_at",
             "note",
+            "click_count",
         ]
     )
 
@@ -344,6 +347,7 @@ def export_links_csv(
                 link.created_at.isoformat(),
                 expires_at.isoformat() if expires_at is not None else "",
                 (link.note or "").replace("\n", " ").replace("\r", " "),
+                link.click_count,
             ]
         )
 
@@ -561,6 +565,11 @@ def redirect(
     expires_at = as_utc(link.expires_at)
     if expires_at is not None and expires_at <= now_utc():
         raise HTTPException(status_code=410, detail="Gone")
+
+    # Increment click count (only count successful redirects for active, non-expired links)
+    link.click_count += 1
+    db.add(link)
+    db.commit()
 
     return RedirectResponse(url=link.original_url, status_code=302)
 
