@@ -11,8 +11,31 @@ node_modules/
 dist/
 .vite/
 
-# Env
+# Environment files (contains secrets)
 .env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Firebase credentials
+.firebaserc
+firebase-debug.log
+.firebase/
+
+# Google Cloud credentials
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!firebase.json
+service-account*.json
+*-credentials.json
+cloud-sql-proxy
 
 # DB volumes
 pgdata/
