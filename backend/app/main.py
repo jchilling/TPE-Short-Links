@@ -8,13 +8,13 @@ from typing import Literal
 import qrcode
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.models import ReservedCode, ShortLink, Tag
+from app.models import BlockedWord, ReservedCode, ShortLink, Tag
 from app.schemas import (
     DisableOut,
     LinkCreateIn,
@@ -64,17 +64,16 @@ def is_reserved(code: str, db: Session) -> bool:
 
 
 def sync_seed_tags(db: Session) -> None:
-    """Ensure DB tags match `backend/app/tags.txt` (by name).
+    """Ensure seed tags from `backend/app/tags.txt` exist in DB.
 
-    - Inserts missing tags (active)
-    - Reactivates tags that exist but were inactive
-    - Deactivates tags not present in the file (does NOT delete rows)
+    - Inserts missing seed tags (active)
+    - Reactivates seed tags that exist but were inactive
+    - Does NOT deactivate user-created tags (allows API-created tags to persist)
     """
     desired = load_seed_tags()
     if not desired:
         return
 
-    desired_set = set(desired)
     existing = db.execute(select(Tag)).scalars().all()
     by_name = {t.name: t for t in existing}
 
@@ -89,10 +88,8 @@ def sync_seed_tags(db: Session) -> None:
             t.is_active = True
             changed = True
 
-    for t in existing:
-        if t.is_active and t.name not in desired_set:
-            t.is_active = False
-            changed = True
+    # Note: We intentionally do NOT deactivate tags not in the seed file.
+    # This allows users to create custom tags via the API that persist.
 
     if changed:
         try:
@@ -195,9 +192,20 @@ def create_link(payload: LinkCreateIn, db: Session = Depends(get_db)) -> LinkOut
     else:
         # Auto-generate code
         code = None
-        for _ in range(30):
+        # Pre-fetch blocked words for efficiency (only 3-4 char words matter for blocking)
+        blocked_words = set(
+            db.execute(select(BlockedWord.word).where(func.length(BlockedWord.word) >= 3))
+            .scalars()
+            .all()
+        )
+        
+        for _ in range(100):
             code = generate_code(settings.SHORTLINK_CODE_LENGTH)
             if is_reserved(code, db):
+                continue
+            # Check if code contains any blocked word as substring
+            code_lower = code.lower()
+            if any(word in code_lower for word in blocked_words):
                 continue
             existing_link = db.execute(select(ShortLink).where(ShortLink.code == code)).scalar_one_or_none()
             if existing_link is None:
@@ -388,100 +396,54 @@ def get_qrcode(
 
 
 @app.get("/api/blocked-words", response_model=list[str])
-def list_blocked_words() -> list[str]:
-    """List all blocked words (returns all words, but only 3-4 char words actually block codes)."""
-    try:
-        from app.utils import _load_blocked_words, _BLOCKED_WORDS_FILE
-        
-        # Clear cache to ensure fresh load
-        _load_blocked_words.cache_clear()
-        
-        # Check if file exists
-        if not _BLOCKED_WORDS_FILE.exists():
-            raise HTTPException(
-                status_code=404,
-                detail=f"Blocked words file not found at: {_BLOCKED_WORDS_FILE}",
-            )
-
-        words = _load_blocked_words()
-        # Return all words (user can see what's in the list), but only 3-4 char words actually block
-        return sorted(list(words))
-    except HTTPException:
-        raise
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        import logging
-        logging.error(f"Error loading blocked words: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error loading blocked words: {str(e)}")
+def list_blocked_words(db: Session = Depends(get_db)) -> list[str]:
+    """List all blocked words from database."""
+    words = db.execute(select(BlockedWord.word).order_by(BlockedWord.word)).scalars().all()
+    return list(words)
 
 
 @app.post("/api/blocked-words")
-def add_blocked_word(word: str = Query(..., min_length=1, max_length=4)) -> dict[str, str]:
+def add_blocked_word(
+    word: str = Query(..., min_length=1, max_length=4),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
     """Add a word to the blocked list."""
-    from app.utils import _BLOCKED_WORDS_FILE
-
     word_lower = word.strip().lower()
     if not word_lower or len(word_lower) > 4:
         raise HTTPException(status_code=422, detail="Word must be 1-4 characters")
 
-    # Read existing words
-    existing = set()
-    if _BLOCKED_WORDS_FILE.exists():
-        with open(_BLOCKED_WORDS_FILE, "r") as f:
-            for line in f:
-                w = line.strip().lower()
-                if w:
-                    existing.add(w)
-
-    # Add new word
-    if word_lower in existing:
+    # Check if already exists
+    existing = db.execute(select(BlockedWord).where(BlockedWord.word == word_lower)).scalar_one_or_none()
+    if existing:
         raise HTTPException(status_code=409, detail="Word already exists")
 
-    existing.add(word_lower)
-
-    # Write back (sorted)
-    with open(_BLOCKED_WORDS_FILE, "w") as f:
-        for w in sorted(existing):
-            f.write(f"{w}\n")
-
-    # Clear cache
-    from app.utils import _load_blocked_words
-    _load_blocked_words.cache_clear()
+    # Add new word
+    blocked_word = BlockedWord(word=word_lower)
+    db.add(blocked_word)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Word already exists")
 
     return {"message": "Word added", "word": word_lower}
 
 
 @app.delete("/api/blocked-words/{word}")
-def delete_blocked_word(word: str = Path(..., min_length=1, max_length=4)) -> dict[str, str]:
+def delete_blocked_word(
+    word: str = Path(..., min_length=1, max_length=4),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
     """Remove a word from the blocked list."""
-    from app.utils import _BLOCKED_WORDS_FILE
-
     word_lower = word.strip().lower()
 
-    # Read existing words
-    existing = set()
-    if _BLOCKED_WORDS_FILE.exists():
-        with open(_BLOCKED_WORDS_FILE, "r") as f:
-            for line in f:
-                w = line.strip().lower()
-                if w:
-                    existing.add(w)
-
-    # Remove word
-    if word_lower not in existing:
+    # Find and delete
+    blocked_word = db.execute(select(BlockedWord).where(BlockedWord.word == word_lower)).scalar_one_or_none()
+    if not blocked_word:
         raise HTTPException(status_code=404, detail="Word not found")
 
-    existing.remove(word_lower)
-
-    # Write back (sorted)
-    with open(_BLOCKED_WORDS_FILE, "w") as f:
-        for w in sorted(existing):
-            f.write(f"{w}\n")
-
-    # Clear cache
-    from app.utils import _load_blocked_words
-    _load_blocked_words.cache_clear()
+    db.delete(blocked_word)
+    db.commit()
 
     return {"message": "Word removed", "word": word_lower}
 
@@ -564,7 +526,34 @@ def redirect(
 
     expires_at = as_utc(link.expires_at)
     if expires_at is not None and expires_at <= now_utc():
-        raise HTTPException(status_code=410, detail="Gone")
+        # Show a friendly HTML page for expired links (instead of JSON).
+        html = """<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>頁面不存在</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", Arial, sans-serif; background:#f8fafc; color:#0f172a; margin:0; }
+      .wrap { max-width: 720px; margin: 72px auto; padding: 0 20px; }
+      .card { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:28px; box-shadow: 0 10px 25px rgba(15,23,42,0.08); }
+      h1 { font-size: 28px; margin: 0 0 12px; }
+      p { font-size: 16px; line-height: 1.7; margin: 0 0 8px; color:#334155; }
+      .muted { color:#64748b; margin-top: 16px; font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <h1>抱歉！找不到您要找的頁面。</h1>
+        <p>如網址正確，表示該頁面已下架，</p>
+        <p>如需了解進一步資訊，請逕洽網站頁面之主責機關。</p>
+        <p class="muted">狀態碼：410（連結已過期）</p>
+      </div>
+    </div>
+  </body>
+</html>"""
+        return HTMLResponse(content=html, status_code=410)
 
     # Increment click count (only count successful redirects for active, non-expired links)
     link.click_count += 1

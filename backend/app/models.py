@@ -43,3 +43,10 @@ class ShortLink(Base):
     click_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
     tag: Mapped[Tag] = relationship(back_populates="links")
+
+
+class BlockedWord(Base):
+    __tablename__ = "blocked_words"
+
+    word: Mapped[str] = mapped_column(String(4), primary_key=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())

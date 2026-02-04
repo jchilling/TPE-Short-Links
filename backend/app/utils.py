@@ -90,6 +90,9 @@ def validate_expires_at(expires_at: dt.datetime | None) -> None:
 def is_english_word(code: str) -> bool:
     """Check if code contains any blocked word (3-4 chars) as a substring (case-insensitive).
     
+    DEPRECATED: This function uses file-based blocked words.
+    Use is_blocked_word_db() instead for database-based checking.
+    
     Words of length 1-2 are allowed to appear in codes, only 3-4 character words block.
     """
     code_lower = code.lower()
@@ -99,11 +102,9 @@ def is_english_word(code: str) -> bool:
 
 
 def generate_code(length: int) -> str:
-    """Generate a random code of exactly the specified length, ensuring it doesn't contain any blocked word as a substring."""
-    for _ in range(100):  # Retry up to 100 times
-        code = "".join(secrets.choice(ALPHABET) for _ in range(length))
-        if not is_english_word(code):
-            return code
-    # Fallback: if we can't generate a code without blocked words, raise error
-    raise ValueError("Failed to generate code without blocked words")
+    """Generate a random code of exactly the specified length.
+    
+    Note: Blocked word checking should be done separately using the database.
+    """
+    return "".join(secrets.choice(ALPHABET) for _ in range(length))
 

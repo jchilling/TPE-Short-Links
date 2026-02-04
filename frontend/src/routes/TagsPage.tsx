@@ -157,7 +157,7 @@ export function TagsPage() {
           border: '1px solid var(--mantine-color-gray-2)',
         }}
       >
-        <Table highlightOnHover withTableBorder radius="md">
+        <Table highlightOnHover withTableBorder>
           <Table.Thead>
             <Table.Tr>
               <Table.Th style={{ fontWeight: 600 }}>Tag Name</Table.Th>
