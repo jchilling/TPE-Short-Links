@@ -12,7 +12,7 @@ export type Link = {
   tag_name: string;
   expires_at: string | null;
   note: string | null;
-  status: 'active' | 'disabled' | 'blocked';
+  status: 'active' | 'disabled' | 'expired';
   created_at: string;
   is_expired: boolean;
   short_url: string;

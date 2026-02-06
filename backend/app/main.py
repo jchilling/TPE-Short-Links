@@ -17,9 +17,11 @@ from app.db.session import get_db
 from app.models import BlockedWord, ReservedCode, ShortLink, Tag
 from app.schemas import (
     DisableOut,
+    EnableOut,
     LinkCreateIn,
     LinkListOut,
     LinkOut,
+    LinkUpdateIn,
     TagOut,
 )
 from app.settings import get_settings
@@ -236,7 +238,7 @@ def create_link(payload: LinkCreateIn, db: Session = Depends(get_db)) -> LinkOut
 def list_links(
     query: str | None = Query(default=None),
     tag_id: int | None = Query(default=None, ge=1),
-    status: Literal["active", "disabled", "blocked", "expired", "all"] | None = Query(default="all"),
+    status: Literal["active", "disabled", "expired", "all"] | None = Query(default="all"),
     limit: int = Query(default=20, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -284,7 +286,7 @@ def list_links(
 def export_links_csv(
     query: str | None = Query(default=None),
     tag_id: int | None = Query(default=None, ge=1),
-    status: Literal["active", "disabled", "blocked", "expired", "all"] | None = Query(default="all"),
+    status: Literal["active", "disabled", "expired", "all"] | None = Query(default="all"),
     db: Session = Depends(get_db),
 ) -> Response:
     """Export links as CSV (applies same filters as list_links, but no pagination)."""
@@ -508,6 +510,50 @@ def disable_link(
     return DisableOut(code=code, status=link.status)
 
 
+@app.post("/api/links/{code}/enable", response_model=EnableOut)
+def enable_link(
+    code: str = Path(..., min_length=1, max_length=32),
+    db: Session = Depends(get_db),
+) -> EnableOut:
+    """Revive a disabled link. Status becomes active; if expires_at is in the past it will display as expired until expiry is extended."""
+    if is_reserved(code, db):
+        raise HTTPException(status_code=404, detail="Not found")
+    link = db.execute(select(ShortLink).where(ShortLink.code == code)).scalar_one_or_none()
+    if link is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    if link.status != "disabled":
+        raise HTTPException(status_code=422, detail="Link is not disabled")
+    link.status = "active"
+    db.add(link)
+    db.commit()
+    return EnableOut(code=code, status=link.status)
+
+
+@app.patch("/api/links/{code}", response_model=LinkOut)
+def update_link(
+    code: str = Path(..., min_length=1, max_length=32),
+    payload: LinkUpdateIn = ...,
+    db: Session = Depends(get_db),
+) -> LinkOut:
+    """Update expiry date. Only allowed when status is active or expired (not disabled)."""
+    if is_reserved(code, db):
+        raise HTTPException(status_code=404, detail="Not found")
+    link = db.execute(select(ShortLink).where(ShortLink.code == code)).scalar_one_or_none()
+    if link is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    if link.status == "disabled":
+        raise HTTPException(status_code=422, detail="Cannot modify expiry when link is disabled; enable it first")
+    if payload.expires_at is not None and payload.expires_at.tzinfo is None:
+        raise HTTPException(status_code=422, detail="expires_at must be timezone-aware")
+    link.expires_at = payload.expires_at
+    db.add(link)
+    db.commit()
+    db.refresh(link)
+    tag = db.get(Tag, link.tag_id)
+    assert tag is not None
+    return link_to_out(link, tag.name)
+
+
 @app.get("/{code}")
 def redirect(
     code: str = Path(..., min_length=1, max_length=32),
@@ -521,7 +567,7 @@ def redirect(
     if link is None:
         raise HTTPException(status_code=404, detail="Not found")
 
-    if link.status in ("disabled", "blocked"):
+    if link.status == "disabled":
         raise HTTPException(status_code=404, detail="Not found")
 
     expires_at = as_utc(link.expires_at)

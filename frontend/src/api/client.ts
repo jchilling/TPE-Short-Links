@@ -32,7 +32,7 @@ export const api = {
   listLinks: (params: {
     query?: string;
     tag_id?: number;
-    status?: 'active' | 'disabled' | 'blocked' | 'expired' | 'all';
+    status?: 'active' | 'disabled' | 'expired' | 'all';
     limit?: number;
     offset?: number;
   }) => {
@@ -46,6 +46,12 @@ export const api = {
     return apiFetch<LinkList>(`/api/links${qs ? `?${qs}` : ''}`);
   },
   disableLink: (code: string) => apiFetch<{ code: string; status: string }>(`/api/links/${code}/disable`, { method: 'POST' }),
+  enableLink: (code: string) => apiFetch<{ code: string; status: string }>(`/api/links/${code}/enable`, { method: 'POST' }),
+  updateLinkExpiry: (code: string, expires_at: string | null) =>
+    apiFetch<Link>(`/api/links/${code}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ expires_at }),
+    }),
   getQrCodeUrl: (code: string) => `${API_BASE_URL}/api/links/${code}/qrcode`,
   listBlockedWords: () => apiFetch<string[]>('/api/blocked-words'),
   addBlockedWord: (word: string) => apiFetch<{ message: string; word: string }>(`/api/blocked-words?word=${encodeURIComponent(word)}`, { method: 'POST' }),

@@ -41,6 +41,17 @@ class LinkListOut(BaseModel):
     offset: int
 
 
+class LinkUpdateIn(BaseModel):
+    """Only expires_at can be updated; allowed only when status is active or expired."""
+
+    expires_at: dt.datetime | None = None
+
+
 class DisableOut(BaseModel):
+    code: str
+    status: str
+
+
+class EnableOut(BaseModel):
     code: str
     status: str

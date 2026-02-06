@@ -266,7 +266,7 @@ gcloud sql instances describe tpe-shortlinks-db
 # View Cloud Run logs
 gcloud run services logs read tpe-shortlinks-api --region=asia-east1
 
-# Redeploy backend
+# Redeploy backend (image only; keeps existing env vars and Cloud SQL)
 docker build -t asia-east1-docker.pkg.dev/doit-dic-itteam/tpe-shortlinks/api:latest backend/
 docker push asia-east1-docker.pkg.dev/doit-dic-itteam/tpe-shortlinks/api:latest
 gcloud run deploy tpe-shortlinks-api --image=asia-east1-docker.pkg.dev/doit-dic-itteam/tpe-shortlinks/api:latest --region=asia-east1
@@ -276,4 +276,52 @@ cd frontend && npm run build && cd .. && firebase deploy --only hosting
 
 # Run migrations
 cd backend && export $(cat .env.production | xargs) && alembic upgrade head
+```
+
+---
+
+## Redeploy with env vars (first deploy or when changing env)
+
+If you need to pass env vars again (e.g. first deploy or changing `PUBLIC_BASE_URL`), avoid inline `--set-env-vars` in zsh:
+
+- **Double quotes** let zsh interpret `^` (history expansion), so `"^#^..."` can break and cause `unrecognized arguments`.
+- **Trailing space after `\`** breaks line continuation; the next line runs as a separate command (`no such file or directory: --image=...`).
+
+**Option A – Use an env file (recommended)**
+
+Create `backend/env.yaml` (add to `.gitignore`; do not commit secrets):
+
+```yaml
+CLOUD_SQL_CONNECTION_NAME: "doit-dic-itteam:asia-east1:tpe-shortlinks-db"
+DATABASE_URL: "postgresql+psycopg://tpe_admin:YOUR_PASSWORD@/tpe_short_links?host=/cloudsql/doit-dic-itteam:asia-east1:tpe-shortlinks-db"
+ALLOW_HTTP_URLS: "false"
+SHORTLINK_CODE_LENGTH: "4"
+RESERVED_CODES: "api,docs,admin,health,metrics"
+PUBLIC_BASE_URL: "https://url.taipei"
+```
+
+Then deploy (no commas/special chars in the shell):
+
+```bash
+gcloud run deploy tpe-shortlinks-api \
+  --image=asia-east1-docker.pkg.dev/doit-dic-itteam/tpe-shortlinks/api:latest \
+  --platform=managed \
+  --region=asia-east1 \
+  --allow-unauthenticated \
+  --add-cloudsql-instances=doit-dic-itteam:asia-east1:tpe-shortlinks-db \
+  --env-vars-file=backend/env.yaml
+```
+
+**Option B – Inline with single quotes**
+
+Use **single quotes** so zsh does not touch `^` or other chars, and ensure **no space after the backslash** at the end of each line:
+
+```bash
+gcloud run deploy tpe-shortlinks-api \
+  --image=asia-east1-docker.pkg.dev/doit-dic-itteam/tpe-shortlinks/api:latest \
+  --platform=managed \
+  --region=asia-east1 \
+  --allow-unauthenticated \
+  --add-cloudsql-instances=doit-dic-itteam:asia-east1:tpe-shortlinks-db \
+  --set-env-vars='^#^CLOUD_SQL_CONNECTION_NAME=doit-dic-itteam:asia-east1:tpe-shortlinks-db#DATABASE_URL=postgresql+psycopg://tpe_admin:YOUR_PASSWORD@/tpe_short_links#ALLOW_HTTP_URLS=false#SHORTLINK_CODE_LENGTH=4#RESERVED_CODES=api,docs,admin,health,metrics#PUBLIC_BASE_URL=https://url.taipei'
 ```

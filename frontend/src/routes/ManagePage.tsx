@@ -12,22 +12,75 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
+import { DateTimePicker } from '@mantine/dates';
+import '@mantine/dates/styles.css';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
-import { IconBan, IconRefresh } from '@tabler/icons-react';
+import { IconBan, IconCalendar, IconCheck, IconRefresh } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
 
 import { API_BASE_URL, api } from '../api/client';
 import type { Link, Tag } from '../api/types';
 
-type StatusFilter = 'active' | 'disabled' | 'blocked' | 'expired' | 'all';
+type StatusFilter = 'active' | 'disabled' | 'expired' | 'all';
+
+function EditExpiryForm({
+  link,
+  initialExpiresAt,
+  onSave,
+  onCancel,
+}: {
+  link: Link;
+  initialExpiresAt: Date | null;
+  onSave: (expiresAt: Date | null) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [mode, setMode] = useState<'permanent' | 'datetime'>(initialExpiresAt ? 'datetime' : 'permanent');
+  const [expiresAt, setExpiresAt] = useState<Date | null>(initialExpiresAt);
+  const [saving, setSaving] = useState(false);
+  return (
+    <Stack gap="md">
+      <Select
+        label="Expiry"
+        data={[
+          { value: 'permanent', label: 'Permanent' },
+          { value: 'datetime', label: 'Date/Time' },
+        ]}
+        value={mode}
+        onChange={(v) => setMode((v as 'permanent' | 'datetime') ?? 'permanent')}
+      />
+      {mode === 'datetime' && (
+        <DateTimePicker
+          label="Expires at"
+          value={expiresAt}
+          onChange={setExpiresAt}
+        />
+      )}
+      <Group justify="flex-end" gap="sm">
+        <Button variant="default" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button
+          loading={saving}
+          onClick={async () => {
+            setSaving(true);
+            await onSave(mode === 'permanent' ? null : expiresAt);
+            setSaving(false);
+          }}
+        >
+          Save
+        </Button>
+      </Group>
+    </Stack>
+  );
+}
 
 function statusBadge(link: Link) {
   if (link.is_expired) return <Badge color="orange">expired</Badge>;
   if (link.status === 'active') return <Badge color="green">active</Badge>;
   if (link.status === 'disabled') return <Badge color="gray">disabled</Badge>;
-  return <Badge color="red">{link.status}</Badge>;
+  return <Badge color="orange">expired</Badge>;
 }
 
 export function ManagePage() {
@@ -82,6 +135,54 @@ export function ManagePage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, status, tagId, query]);
+
+  const canEditExpiry = (l: Link) => l.status === 'active' || l.is_expired;
+
+  function confirmEnable(code: string) {
+    modals.openConfirmModal({
+      title: 'Enable link',
+      children: (
+        <Text size="sm">
+          This link will be active again. If the expiry date has passed, it will show as expired until you extend the expiry.
+        </Text>
+      ),
+      labels: { confirm: 'Enable', cancel: 'Cancel' },
+      confirmProps: { color: 'green' },
+      onConfirm: async () => {
+        try {
+          await api.enableLink(code);
+          notifications.show({ color: 'green', message: 'Link enabled' });
+          load();
+        } catch (e) {
+          notifications.show({ color: 'red', message: e instanceof Error ? e.message : 'Failed' });
+        }
+      },
+    });
+  }
+
+  function openEditExpiryModal(l: Link) {
+    modals.open({
+      title: 'Edit expiry',
+      size: 'md',
+      children: (
+        <EditExpiryForm
+          link={l}
+          initialExpiresAt={l.expires_at ? new Date(l.expires_at) : null}
+          onSave={async (newExpiresAt) => {
+            try {
+              await api.updateLinkExpiry(l.code, newExpiresAt ? newExpiresAt.toISOString() : null);
+              notifications.show({ color: 'green', message: 'Expiry updated' });
+              modals.closeAll();
+              load();
+            } catch (e) {
+              notifications.show({ color: 'red', message: e instanceof Error ? e.message : 'Failed' });
+            }
+          }}
+          onCancel={() => modals.closeAll()}
+        />
+      ),
+    });
+  }
 
   function exportCsv() {
     try {
@@ -196,7 +297,6 @@ export function ManagePage() {
                 { value: 'active', label: 'Active' },
                 { value: 'expired', label: 'Expired' },
                 { value: 'disabled', label: 'Disabled' },
-                { value: 'blocked', label: 'Blocked' },
               ]}
               value={status}
               onChange={(v) => {
@@ -247,7 +347,7 @@ export function ManagePage() {
               <Table.Th style={{ width: '140px', fontWeight: 600 }}>Expiry</Table.Th>
               <Table.Th style={{ width: '100px', fontWeight: 600 }}>Status</Table.Th>
               <Table.Th style={{ width: '100px', fontWeight: 600 }}>Clicks</Table.Th>
-              <Table.Th style={{ width: '50px' }}></Table.Th>
+              <Table.Th style={{ width: '100px' }}>Actions</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -322,17 +422,45 @@ export function ManagePage() {
                     </Text>
                   </Table.Td>
                   <Table.Td>
-                    <ActionIcon
-                      variant="subtle"
-                      color="red"
-                      disabled={l.status !== 'active' || l.is_expired}
-                      onClick={() => confirmDisable(l.code)}
-                      aria-label="Disable"
-                      size="md"
-                      radius="md"
-                    >
-                      <IconBan size={18} />
-                    </ActionIcon>
+                    <Group gap="xs" wrap="nowrap">
+                      {l.status === 'disabled' ? (
+                        <ActionIcon
+                          variant="subtle"
+                          color="green"
+                          onClick={() => confirmEnable(l.code)}
+                          aria-label="Enable"
+                          size="md"
+                          radius="md"
+                        >
+                          <IconCheck size={18} />
+                        </ActionIcon>
+                      ) : (
+                        <>
+                          {canEditExpiry(l) && (
+                            <ActionIcon
+                              variant="subtle"
+                              color="blue"
+                              onClick={() => openEditExpiryModal(l)}
+                              aria-label="Edit expiry"
+                              size="md"
+                              radius="md"
+                            >
+                              <IconCalendar size={18} />
+                            </ActionIcon>
+                          )}
+                          <ActionIcon
+                            variant="subtle"
+                            color="red"
+                            onClick={() => confirmDisable(l.code)}
+                            aria-label="Disable"
+                            size="md"
+                            radius="md"
+                          >
+                            <IconBan size={18} />
+                          </ActionIcon>
+                        </>
+                      )}
+                    </Group>
                   </Table.Td>
                 </Table.Tr>
               ))

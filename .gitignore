@@ -17,6 +17,7 @@ dist/
 !.env.example
 backend/.env
 backend/.env.*
+backend/env.yaml
 !backend/.env.example
 frontend/.env
 frontend/.env.*
