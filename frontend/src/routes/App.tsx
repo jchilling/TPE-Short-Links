@@ -1,14 +1,17 @@
 import { AppShell, Button, Container, Group, Title } from '@mantine/core';
-import { IconLink, IconListSearch, IconShield, IconTags } from '@tabler/icons-react';
+import { IconLink, IconListSearch, IconLogout, IconShield, IconTags } from '@tabler/icons-react';
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
+import { useAuth } from '../auth/AuthContext';
 import { BlockedWordsPage } from './BlockedWordsPage';
 import { CreatePage } from './CreatePage';
+import { LoginPage } from './LoginPage';
 import { ManagePage } from './ManagePage';
 import { TagsPage } from './TagsPage';
 
 export function App() {
   const location = useLocation();
+  const { user, loading, signOut } = useAuth();
 
   const navItems = [
     { path: '/create', label: 'Create', icon: IconLink },
@@ -50,7 +53,7 @@ export function App() {
               TPE Short Links
             </Title>
             <Group gap="xs" align="center" wrap="nowrap">
-              {navItems.map((item) => {
+              {user && navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path;
                 return (
@@ -86,19 +89,41 @@ export function App() {
                   </Button>
                 );
               })}
+              {user && (
+                <Button
+                  variant="subtle"
+                  color="gray"
+                  leftSection={<IconLogout size={18} />}
+                  size="sm"
+                  radius="md"
+                  onClick={() => signOut()}
+                >
+                  Sign out
+                </Button>
+              )}
             </Group>
           </Group>
         </Container>
       </AppShell.Header>
       <AppShell.Main>
         <Container size="lg" py="xl">
-          <Routes>
-            <Route path="/create" element={<CreatePage />} />
-            <Route path="/manage" element={<ManagePage />} />
-            <Route path="/tags" element={<TagsPage />} />
-            <Route path="/blocked-words" element={<BlockedWordsPage />} />
-            <Route path="*" element={<Navigate to="/create" replace />} />
-          </Routes>
+          {loading ? (
+            <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>
+          ) : !user ? (
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="*" element={<Navigate to="/login" replace />} />
+            </Routes>
+          ) : (
+            <Routes>
+              <Route path="/login" element={<Navigate to="/create" replace />} />
+              <Route path="/create" element={<CreatePage />} />
+              <Route path="/manage" element={<ManagePage />} />
+              <Route path="/tags" element={<TagsPage />} />
+              <Route path="/blocked-words" element={<BlockedWordsPage />} />
+              <Route path="*" element={<Navigate to="/create" replace />} />
+            </Routes>
+          )}
         </Container>
       </AppShell.Main>
     </AppShell>

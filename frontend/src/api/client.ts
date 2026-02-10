@@ -1,14 +1,20 @@
 import type { CreateLinkIn, Link, LinkList, Tag } from './types';
+import { auth } from '../firebase';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    ...((init?.headers as Record<string, string>) ?? {}),
+  };
+  if (auth.currentUser) {
+    const token = await auth.currentUser.getIdToken();
+    headers['Authorization'] = `Bearer ${token}`;
+  }
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
-    headers: {
-      'content-type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
+    headers,
   });
 
   if (!res.ok) {

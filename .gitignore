@@ -41,5 +41,8 @@ cloud-sql-proxy
 # DB volumes
 pgdata/
 
+# Firebase Functions env (SMTP, whitelist)
+functions/.env
+
 # Cursor
 .cursor/

@@ -13,6 +13,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.auth import get_firebase_user
 from app.db.session import get_db
 from app.models import BlockedWord, ReservedCode, ShortLink, Tag
 from app.schemas import (
@@ -124,7 +125,10 @@ def link_to_out(link: ShortLink, tag_name: str) -> LinkOut:
 
 
 @app.get("/api/tags", response_model=list[TagOut])
-def get_tags(db: Session = Depends(get_db)) -> list[TagOut]:
+def get_tags(
+    db: Session = Depends(get_db),
+    _auth: dict = Depends(get_firebase_user),
+) -> list[TagOut]:
     try:
         # Clear cache to ensure fresh load
         from app.utils import load_seed_tags
@@ -146,7 +150,11 @@ def get_tags(db: Session = Depends(get_db)) -> list[TagOut]:
 
 
 @app.post("/api/links", response_model=LinkOut)
-def create_link(payload: LinkCreateIn, db: Session = Depends(get_db)) -> LinkOut:
+def create_link(
+    payload: LinkCreateIn,
+    db: Session = Depends(get_db),
+    _auth: dict = Depends(get_firebase_user),
+) -> LinkOut:
     settings = get_settings()
     sync_seed_tags(db)
 
@@ -236,6 +244,7 @@ def create_link(payload: LinkCreateIn, db: Session = Depends(get_db)) -> LinkOut
 
 @app.get("/api/links", response_model=LinkListOut)
 def list_links(
+    _auth: dict = Depends(get_firebase_user),
     query: str | None = Query(default=None),
     tag_id: int | None = Query(default=None, ge=1),
     status: Literal["active", "disabled", "expired", "all"] | None = Query(default="all"),
@@ -288,6 +297,7 @@ def export_links_csv(
     tag_id: int | None = Query(default=None, ge=1),
     status: Literal["active", "disabled", "expired", "all"] | None = Query(default="all"),
     db: Session = Depends(get_db),
+    _auth: dict = Depends(get_firebase_user),
 ) -> Response:
     """Export links as CSV (applies same filters as list_links, but no pagination)."""
     settings = get_settings()
@@ -373,6 +383,7 @@ def export_links_csv(
 def get_qrcode(
     code: str = Path(..., min_length=1, max_length=32),
     db: Session = Depends(get_db),
+    _auth: dict = Depends(get_firebase_user),
 ) -> Response:
     """Generate QR code PNG for a short link."""
     settings = get_settings()
@@ -398,7 +409,10 @@ def get_qrcode(
 
 
 @app.get("/api/blocked-words", response_model=list[str])
-def list_blocked_words(db: Session = Depends(get_db)) -> list[str]:
+def list_blocked_words(
+    db: Session = Depends(get_db),
+    _auth: dict = Depends(get_firebase_user),
+) -> list[str]:
     """List all blocked words from database."""
     words = db.execute(select(BlockedWord.word).order_by(BlockedWord.word)).scalars().all()
     return list(words)
@@ -408,6 +422,7 @@ def list_blocked_words(db: Session = Depends(get_db)) -> list[str]:
 def add_blocked_word(
     word: str = Query(..., min_length=1, max_length=4),
     db: Session = Depends(get_db),
+    _auth: dict = Depends(get_firebase_user),
 ) -> dict[str, str]:
     """Add a word to the blocked list."""
     word_lower = word.strip().lower()
@@ -435,6 +450,7 @@ def add_blocked_word(
 def delete_blocked_word(
     word: str = Path(..., min_length=1, max_length=4),
     db: Session = Depends(get_db),
+    _auth: dict = Depends(get_firebase_user),
 ) -> dict[str, str]:
     """Remove a word from the blocked list."""
     word_lower = word.strip().lower()
@@ -451,7 +467,11 @@ def delete_blocked_word(
 
 
 @app.post("/api/tags", response_model=TagOut)
-def create_tag(name: str = Query(..., min_length=1, max_length=64), db: Session = Depends(get_db)) -> TagOut:
+def create_tag(
+    name: str = Query(..., min_length=1, max_length=64),
+    db: Session = Depends(get_db),
+    _auth: dict = Depends(get_firebase_user),
+) -> TagOut:
     """Create a new tag."""
     name_trimmed = name.strip()
     if not name_trimmed:
@@ -477,7 +497,11 @@ def create_tag(name: str = Query(..., min_length=1, max_length=64), db: Session 
 
 
 @app.delete("/api/tags/{tag_id}")
-def delete_tag(tag_id: int = Path(..., ge=1), db: Session = Depends(get_db)) -> dict[str, str]:
+def delete_tag(
+    tag_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+    _auth: dict = Depends(get_firebase_user),
+) -> dict[str, str]:
     """Deactivate a tag (soft delete - doesn't delete rows)."""
     tag = db.get(Tag, tag_id)
     if tag is None:
@@ -497,6 +521,7 @@ def delete_tag(tag_id: int = Path(..., ge=1), db: Session = Depends(get_db)) -> 
 def disable_link(
     code: str = Path(..., min_length=1, max_length=32),
     db: Session = Depends(get_db),
+    _auth: dict = Depends(get_firebase_user),
 ) -> DisableOut:
     # Even if present in DB, reserved codes should not be manageable via this API (treat as not found).
     if is_reserved(code, db):
@@ -514,6 +539,7 @@ def disable_link(
 def enable_link(
     code: str = Path(..., min_length=1, max_length=32),
     db: Session = Depends(get_db),
+    _auth: dict = Depends(get_firebase_user),
 ) -> EnableOut:
     """Revive a disabled link. Status becomes active; if expires_at is in the past it will display as expired until expiry is extended."""
     if is_reserved(code, db):
@@ -534,6 +560,7 @@ def update_link(
     code: str = Path(..., min_length=1, max_length=32),
     payload: LinkUpdateIn = ...,
     db: Session = Depends(get_db),
+    _auth: dict = Depends(get_firebase_user),
 ) -> LinkOut:
     """Update expiry date. Only allowed when status is active or expired (not disabled)."""
     if is_reserved(code, db):

@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     SHORTLINK_CODE_LENGTH: int = 4
     RESERVED_CODES: str = ""
     PUBLIC_BASE_URL: str = "http://localhost:8000"
+    # Firebase: project ID and Web app ID (for ID token audience verification)
+    FIREBASE_PROJECT_ID: str = ""
+    FIREBASE_APP_ID: str = ""
 
     def reserved_codes_set(self) -> set[str]:
         raw = (self.RESERVED_CODES or "").strip()

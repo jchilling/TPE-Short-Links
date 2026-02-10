@@ -8,6 +8,7 @@ import { Notifications } from '@mantine/notifications';
 import { ModalsProvider } from '@mantine/modals';
 import { BrowserRouter } from 'react-router-dom';
 
+import { AuthProvider } from './auth/AuthContext';
 import { App } from './routes/App';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -27,7 +28,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <Notifications position="top-right" />
       <ModalsProvider>
         <BrowserRouter>
-          <App />
+          <AuthProvider>
+            <App />
+          </AuthProvider>
         </BrowserRouter>
       </ModalsProvider>
     </MantineProvider>
