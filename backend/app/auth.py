@@ -1,4 +1,12 @@
-"""Firebase ID token verification for admin-only API access."""
+"""Firebase ID token verification for admin-only API access.
+
+This API expects a Firebase **ID token** (from the frontend) in:
+  Authorization: Bearer <token>
+
+Important:
+- The Firebase ID token `aud` claim is the Firebase **Project ID**, not the Web App ID.
+- We therefore verify with `FIREBASE_PROJECT_ID`.
+"""
 from __future__ import annotations
 
 from typing import Any
@@ -15,10 +23,17 @@ def get_firebase_user(
 ) -> dict[str, Any]:
     """
     Verify Authorization Bearer token as Firebase ID token and return decoded claims.
-    If FIREBASE_APP_ID is not set (e.g. local dev), skip verification and return a dummy dict.
+    If FIREBASE_PROJECT_ID is not set (e.g. local dev), skip verification and return a dummy dict.
     """
     settings = get_settings()
-    if not settings.FIREBASE_APP_ID:
+    if not settings.FIREBASE_PROJECT_ID:
+        # If someone set the old/incorrect setting, fail fast instead of silently
+        # bypassing auth in a misconfigured production environment.
+        if settings.FIREBASE_APP_ID:
+            raise HTTPException(
+                status_code=500,
+                detail="Server misconfigured: set FIREBASE_PROJECT_ID (Firebase Project ID) for auth enforcement",
+            )
         return {"sub": "dev", "email": "dev@local"}
 
     auth_header = request.headers.get("Authorization")
@@ -33,7 +48,7 @@ def get_firebase_user(
         claims = id_token.verify_firebase_token(
             token,
             req,
-            audience=settings.FIREBASE_APP_ID,
+            audience=settings.FIREBASE_PROJECT_ID,
         )
         return claims
     except ValueError as e:

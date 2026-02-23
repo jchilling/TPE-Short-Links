@@ -163,7 +163,8 @@ gcloud run deploy tpe-shortlinks-api \
   --set-env-vars="ALLOW_HTTP_URLS=false" \
   --set-env-vars="SHORTLINK_CODE_LENGTH=4" \
   --set-env-vars="RESERVED_CODES=api,docs,admin,health,metrics" \
-  --set-env-vars="PUBLIC_BASE_URL=https://tpe-shortlinks-api-HASH-de.a.run.app"
+  --set-env-vars="PUBLIC_BASE_URL=https://tpe-shortlinks-api-HASH-de.a.run.app" \
+  --set-env-vars="FIREBASE_PROJECT_ID=your-firebase-project-id"
 ```
 
 **Note**: After deployment, get the Cloud Run URL and update `PUBLIC_BASE_URL`:
@@ -181,6 +182,10 @@ gcloud run services describe tpe-shortlinks-api --region=asia-east1 --format='va
 # Create production environment file
 cat > frontend/.env.production << 'EOF'
 VITE_API_BASE_URL=https://YOUR_CLOUD_RUN_URL
+VITE_FIREBASE_API_KEY=your-api-key
+VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_APP_ID=1:123456789:web:abcdef
 EOF
 
 # Example:
@@ -236,12 +241,47 @@ Firebase provides the exact values in the console.
 | `SHORTLINK_CODE_LENGTH` | Short code length | `4` |
 | `RESERVED_CODES` | Blocked codes | `api,docs,admin,health,metrics` |
 | `PUBLIC_BASE_URL` | Backend public URL | `https://api.url.taipei` |
+| `FIREBASE_PROJECT_ID` | Enforce/verify Firebase ID tokens | `doit-dic-itteam` |
 
 ### Frontend (.env.production)
 
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `VITE_API_BASE_URL` | Backend API URL | `https://tpe-shortlinks-api-xxx.a.run.app` |
+| `VITE_FIREBASE_API_KEY` | Firebase web API key | `...` |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase auth domain | `your-project-id.firebaseapp.com` |
+| `VITE_FIREBASE_PROJECT_ID` | Firebase Project ID | `your-project-id` |
+| `VITE_FIREBASE_APP_ID` | Firebase Web App ID | `1:...:web:...` |
+
+---
+
+## Part 6: Firebase Functions (Admin magic link)
+
+The admin login email is sent by a callable Firebase Function: `sendAdminLoginLink` (source: `functions/index.js`).
+
+### 6.1 Configure function environment
+
+Set these once per project:
+
+```bash
+# Whitelisted admin emails (comma-separated)
+firebase functions:config:set admin.whitelist="admin@example.com,manager@example.com"
+
+# Where the magic link should open (must be an Authorized domain in Firebase Auth)
+firebase functions:config:set app.url="https://url.taipei"
+
+# SMTP credentials used to send email
+firebase functions:config:set smtp.user="your@gmail.com" smtp.pass="your-app-password" smtp.from="noreply@yourdomain.com"
+```
+
+### 6.2 Deploy functions
+
+```bash
+cd functions
+npm install
+cd ..
+firebase deploy --only functions
+```
 
 ---
 

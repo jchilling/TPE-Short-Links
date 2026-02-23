@@ -43,6 +43,7 @@ pgdata/
 
 # Firebase Functions env (SMTP, whitelist)
 functions/.env
+functions/config.secret.js
 
 # Cursor
 .cursor/

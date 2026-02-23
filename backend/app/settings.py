@@ -14,7 +14,10 @@ class Settings(BaseSettings):
     SHORTLINK_CODE_LENGTH: int = 4
     RESERVED_CODES: str = ""
     PUBLIC_BASE_URL: str = "http://localhost:8000"
-    # Firebase: project ID and Web app ID (for ID token audience verification)
+    # Firebase:
+    # - FIREBASE_PROJECT_ID is used to verify Firebase ID tokens (token `aud` claim).
+    # - FIREBASE_APP_ID is the Web app's App ID (used by the frontend Firebase config); it is not used
+    #   for backend ID token verification.
     FIREBASE_PROJECT_ID: str = ""
     FIREBASE_APP_ID: str = ""
 

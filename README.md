@@ -65,10 +65,18 @@ gcloud run deploy tpe-short-links-api \
   --source backend \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars DATABASE_URL="postgresql+psycopg://USER:PASSWORD@/DBNAME?host=/cloudsql/PROJECT:REGION:INSTANCE",ALLOW_HTTP_URLS=false,SHORTLINK_CODE_LENGTH=8,RESERVED_CODES="api,docs,admin,health,metrics",PUBLIC_BASE_URL="https://YOUR_DOMAIN"
+  --set-env-vars DATABASE_URL="postgresql+psycopg://USER:PASSWORD@/DBNAME?host=/cloudsql/PROJECT:REGION:INSTANCE",ALLOW_HTTP_URLS=false,SHORTLINK_CODE_LENGTH=8,RESERVED_CODES="api,docs,admin,health,metrics",PUBLIC_BASE_URL="https://YOUR_DOMAIN",FIREBASE_PROJECT_ID="YOUR_FIREBASE_PROJECT_ID"
 ```
 
 For Postgres on GCP, use Cloud SQL + the Cloud SQL Unix socket via `/cloudsql/...` (as above), or use a private IP/VPC connector depending on your setup.
+
+### Authentication (admin-only)
+
+To enforce Firebase admin authentication on all `/api/*` routes in production, set:
+
+- `FIREBASE_PROJECT_ID` to your Firebase Project ID (matches Firebase ID token `aud`)
+
+See `AUTH_SETUP.md` for the full magic-link + Functions setup.
 
 ## API (contract)
 - `POST /api/links`
