@@ -3,9 +3,25 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import io
+import json
+import sys
+from pathlib import Path as FsPath
 from typing import Literal
 
-import qrcode
+# #region agent log
+def _agent_log(location: str, message: str, data: dict, hypothesis_id: str) -> None:
+    payload = {"sessionId": "863f9a", "location": location, "message": message, "data": data, "hypothesisId": hypothesis_id, "timestamp": int(dt.datetime.now(dt.timezone.utc).timestamp() * 1000)}
+    line = json.dumps(payload, default=str) + "\n"
+    try:
+        p = FsPath(__file__).resolve().parents[2] / ".cursor" / "debug-863f9a.log"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.open("a").write(line)
+    except Exception:
+        pass
+    print(line.strip(), file=sys.stderr, flush=True)
+_agent_log("main.py", "module_load_start", {}, "A")
+# #endregion
+
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -35,7 +51,34 @@ from app.utils import (
     validate_original_url,
 )
 
+# #region agent log
+_agent_log("main.py", "imports_done", {}, "A")
+# #endregion
+
 app = FastAPI(title="TPE Short Links")
+
+# #region agent log
+_agent_log("main.py", "FastAPI_app_created", {}, "A")
+# #endregion
+
+# #region agent log
+_DEBUG_LOG_PATH = FsPath(__file__).resolve().parents[2] / ".cursor" / "debug-1c1ee1.log"
+
+def _debug_log(location: str, message: str, data: dict, hypothesis_id: str) -> None:
+    try:
+        payload = {
+            "sessionId": "1c1ee1",
+            "timestamp": int(dt.datetime.now(dt.UTC).timestamp() * 1000),
+            "location": location,
+            "message": message,
+            "data": data,
+            "hypothesisId": hypothesis_id,
+        }
+        with open(_DEBUG_LOG_PATH, "a") as f:
+            f.write(json.dumps(payload, default=str) + "\n")
+    except Exception:
+        pass
+# #endregion
 
 app.add_middleware(
     CORSMiddleware,
@@ -386,6 +429,8 @@ def get_qrcode(
     _auth: dict = Depends(get_firebase_user),
 ) -> Response:
     """Generate QR code PNG for a short link."""
+    import qrcode  # Lazy import so app starts without PIL in slim images (e.g. Cloud Run)
+
     settings = get_settings()
     link = db.execute(select(ShortLink).where(ShortLink.code == code)).scalar_one_or_none()
     if link is None:
@@ -626,12 +671,20 @@ def redirect(
     </div>
   </body>
 </html>"""
-        return HTMLResponse(content=html, status_code=410)
+        return HTMLResponse(
+            content=html,
+            status_code=410,
+            headers={"Cache-Control": "no-store"},
+        )
 
     # Increment click count (only count successful redirects for active, non-expired links)
     link.click_count += 1
     db.add(link)
     db.commit()
 
-    return RedirectResponse(url=link.original_url, status_code=302)
+    return RedirectResponse(
+        url=link.original_url,
+        status_code=302,
+        headers={"Cache-Control": "no-store"},
+    )
 

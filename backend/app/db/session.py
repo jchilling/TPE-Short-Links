@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 import os
+import sys
+from pathlib import Path
 from typing import Generator
 from urllib.parse import parse_qs, unquote, urlparse
 
@@ -14,10 +17,37 @@ _SessionLocal = None
 _connector = None
 
 
+def _agent_log(loc: str, msg: str, data: dict, hid: str) -> None:
+    import datetime as dt
+    payload = {"sessionId": "863f9a", "location": loc, "message": msg, "data": data, "hypothesisId": hid, "timestamp": int(dt.datetime.now(dt.timezone.utc).timestamp() * 1000)}
+    line = json.dumps(payload, default=str) + "\n"
+    try:
+        base = Path(__file__).resolve().parents[3]
+        if str(base) != "/":
+            p = base / ".cursor" / "debug-863f9a.log"
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.open("a").write(line)
+    except Exception:
+        pass
+    print(line.strip(), file=sys.stderr)
+
+
 def get_engine():
     global _engine, _SessionLocal, _connector
+    # #region agent log
+    _agent_log("session.py", "get_engine_start", {}, "B")
+    # #endregion
     if _engine is None:
-        settings = get_settings()
+        try:
+            settings = get_settings()
+        except Exception as e:
+            # #region agent log
+            _agent_log("session.py", "get_settings_error", {"error": str(type(e).__name__), "message": str(e)}, "C")
+            # #endregion
+            raise
+        # #region agent log
+        _agent_log("session.py", "get_engine_got_settings", {"has_cloudsql": "cloudsql" in (settings.DATABASE_URL or "").lower()}, "B")
+        # #endregion
         db_url = settings.DATABASE_URL
         
         # Check for Cloud SQL connection via env var or URL pattern
@@ -57,16 +87,29 @@ def get_engine():
                     db=db_name,
                 )
             
-            _engine = create_engine(
-                "postgresql+pg8000://",
-                creator=getconn,
-                pool_pre_ping=True,
-            )
+            # #region agent log
+            _agent_log("session.py", "get_engine_connecting_cloudsql", {"connection": cloud_sql_connection}, "B")
+            # #endregion
+            try:
+                _engine = create_engine(
+                    "postgresql+pg8000://",
+                    creator=getconn,
+                    pool_pre_ping=True,
+                )
+            except Exception as e:
+                _agent_log("session.py", "get_engine_cloudsql_error", {"error": type(e).__name__, "message": str(e)[:200]}, "B")
+                raise
+            # #region agent log
+            _agent_log("session.py", "get_engine_cloudsql_created", {}, "B")
+            # #endregion
         else:
             # Standard connection (local development)
             _engine = create_engine(db_url, pool_pre_ping=True)
         
         _SessionLocal = sessionmaker(bind=_engine, autoflush=False, autocommit=False, expire_on_commit=False)
+        # #region agent log
+        _agent_log("session.py", "get_engine_done", {}, "B")
+        # #endregion
     return _engine
 
 
