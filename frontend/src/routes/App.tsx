@@ -1,8 +1,9 @@
 import { AppShell, Button, Container, Group, Title } from '@mantine/core';
-import { IconLink, IconListSearch, IconLogout, IconShield, IconTags } from '@tabler/icons-react';
+import { IconLink, IconListSearch, IconLogout, IconShield, IconTags, IconUsers } from '@tabler/icons-react';
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
+import { AdminsPage } from './AdminsPage';
 import { BlockedWordsPage } from './BlockedWordsPage';
 import { CreatePage } from './CreatePage';
 import { LoginPage } from './LoginPage';
@@ -18,6 +19,7 @@ export function App() {
     { path: '/manage', label: 'Manage', icon: IconListSearch },
     { path: '/tags', label: 'Tags', icon: IconTags },
     { path: '/blocked-words', label: 'Blocked Words', icon: IconShield },
+    { path: '/admins', label: 'Admins', icon: IconUsers },
   ];
 
   return (
@@ -121,6 +123,7 @@ export function App() {
               <Route path="/manage" element={<ManagePage />} />
               <Route path="/tags" element={<TagsPage />} />
               <Route path="/blocked-words" element={<BlockedWordsPage />} />
+              <Route path="/admins" element={<AdminsPage />} />
               <Route path="*" element={<Navigate to="/create" replace />} />
             </Routes>
           )}

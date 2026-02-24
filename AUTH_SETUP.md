@@ -99,6 +99,14 @@ SMTP_PASS=your-app-password
 SMTP_FROM=noreply@yourdomain.com
 ```
 
+### 4.4 Admin list (Firestore + UI)
+
+Admin emails can be managed from the app’s **Admins** page (nav: Admins). The list is stored in **Firestore** (collection `admin_emails`).
+
+- **Firestore:** In Firebase Console → Build → Firestore Database, create a database if you don’t have one (e.g. start in production mode; you can restrict rules later).
+- **Initial list:** If the collection is empty, the function still uses the env whitelist (`ADMIN_WHITELIST`). The first time someone requests a magic link (and is allowed), the full env list is copied into Firestore; after that, only Firestore is used.
+- **Add/remove:** Signed-in admins can add or remove emails on the Admins page. You cannot remove yourself or the last admin.
+
 ---
 
 ## 5. Deploy
